@@ -1,5 +1,5 @@
 # lightmeter
-A Lightmeter/Flashmeter for photographers, based on Arduino.
+A Lightmeter for photographers, based on Arduino for the Nano 168.
 
 This fork slashed down the code to fit into an ATMEGA 168 which only has 16K memory. The original required 27K.
 Features that were removed from master:
