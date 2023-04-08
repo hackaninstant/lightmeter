@@ -1,5 +1,5 @@
 void outOfrange() {
-  display.println(F("--"));
+  oled.println(F("--"));
 }
 
 void SaveSettings() {
@@ -9,7 +9,7 @@ void SaveSettings() {
   EEPROM.write(modeIndexAddr, modeIndex);
   EEPROM.write(apertureIndexAddr, apertureIndex);
   EEPROM.write(T_expIndexAddr, T_expIndex);
-  EEPROM.write(meteringModeAddr, meteringMode);
+//  EEPROM.write(meteringModeAddr, meteringMode);
 }
 
 // Returns actual value of Vcc (x 100)
@@ -38,18 +38,18 @@ int getBandgap(void) {
   int results = (((InternalReferenceVoltage * 1024L) / ADC) + 5L) / 10L; // calculates for straight line value
 
   return results;
-}
+} 
 
 void footer() {
-  display.setCursor(0, 55);
-  display.print(F("press M"));
+  oled.setCursor(0, 55);
+  oled.print(F("press M"));
 }
 
 /*
   Get light value
 */
 float getLux() {
-  uint16_t lux = lightMeter.readLightLevel(false);
+  uint16_t lux = lightMeter.readLightLevel();
 
   if (lux >= 65534) {
     // light sensor is overloaded.
@@ -82,7 +82,7 @@ float getApertureByIndex(uint8_t indx) {
 
   // the formula returns exact value, but photographers uses more memorable values.
   // convert it.
-
+/**
   if (f >= 1.1 && f < 1.2) {
     f = 1.1;
   } else if (f >= 1.2 && f < 1.4) {
@@ -119,68 +119,23 @@ float getApertureByIndex(uint8_t indx) {
     f = 80;
   } else if (f >= 90 && f < 101) {
     f = 90;
-  }
+  } */
 
   return f;
 }
 
 // Return ISO value (100, 200, 400, ...) by index in sequence (0, 1, 2, 3, ...).
-long getISOByIndex(uint8_t indx) {
+
+float getISOByIndex(uint8_t indx) {
   if (indx < 0 || indx > MaxISOIndex) {
     indx = 0;
   }
 
-  indx += 10;
+  float isoValues[] = {.8, 1, 1.25, 1.6, 2, 2.5, 3.2, 4, 5, 6.4};
+  float iso = isoValues[indx % 10] * pow(10, floor(indx / 10));
 
-  //  float iso = pow(10, (indx - 1) / 10.0);
-  //  iso = (long)(round(iso / 10.0) * 10);
-
-  long int factor = 1;
-  float iso = 0;
-
-  if (indx > 60) {
-    indx -= 50;
-    factor = 100000;
-  } else if (indx > 50) {
-    indx -= 40;
-    factor = 10000;
-  } else if (indx > 40) {
-    indx -= 30;
-    factor = 1000;
-  } else if (indx > 30) {
-    indx -= 20;
-    factor = 100;
-  } else if (indx > 20) {
-    indx -= 10;
-    factor = 10;
-  }
-
-  if (indx == 10) {
-    iso = 8;
-  } else if (indx == 11) {
-    iso = 10;
-  } else if (indx == 12) {
-    iso = 12.5;
-  } else if (indx == 13) {
-    iso = 16;
-  } else if (indx == 14) {
-    iso = 20;
-  } else if (indx == 15) {
-    iso = 25;
-  } else if (indx == 16) {
-    iso = 32;
-  } else if (indx == 17) {
-    iso = 40;
-  } else if (indx == 18) {
-    iso = 50;
-  } else if (indx == 19) {
-    iso = 64;
-  } else if (indx == 20) {
-    iso = 80;
-  }
-
-  iso = (long)floor(iso * factor);
   return iso;
+
 }
 
 float getMinDistance(float x, float v1, float v2) {
@@ -196,61 +151,17 @@ float getTimeByIndex(uint8_t indx) {
     indx = 0;
   }
 
-  float factor = 0;
-  float t = 0;
-
-  if (indx < 10) {
-    factor = 100.0;
-  } else if (indx < 20) {
-    indx -= 10;
-    factor = 10.0;
-  } else if (indx < 30) {
-    indx -= 20;
-    factor = 1.0;
-  } else if (indx < 40) {
-    indx -= 30;
-    factor = 0.1;
-  } else if (indx < 50) {
-    indx -= 40;
-    factor = 0.01;
-  } else if (indx < 60) {
-    indx -= 50;
-    factor = 0.001;
-  } else if (indx < 70) {
-    indx -= 60;
-    factor = 0.0001;
-  } else if (indx < 80) {
-    indx -= 70;
-    factor = 0.00001;
-  }
-
-  if (indx == 0) {
-    t = 100;
-  } else if (indx == 1) {
-    t = 80;
-  } else if (indx == 2) {
-    t = 64;
-  } else if (indx == 3) {
-    t = 50;
-  } else if (indx == 4) {
-    t = 40;
-  } else if (indx == 5) {
-    t = 32;
-  } else if (indx == 6) {
-    t = 25;
-  } else if (indx == 7) {
-    t = 20;
-  } else if (indx == 8) {
-    t = 16;
-  } else if (indx == 9) {
-    t = 12.5;
-  }
-
-  t = 1 / (t * factor);
+  float shutterspeedvalues[] = {100, 80, 64, 50, 40, 32, 25, 20, 15, 12.5};
+  float factor = floor(indx / 10) - 2; // get multiplying factor
+  factor = -factor; // invert
+  float t = shutterspeedvalues[indx % 10] * pow(10, factor);
+  t = 1 / t;
   return t;
 }
 
 // Convert calculated time (in seconds) to photograpy style shutter speed. 
+
+
 double fixTime(double t) {
   double divider = 1;
 
@@ -260,6 +171,7 @@ double fixTime(double t) {
     return maxTime;
   }
 
+/*
   t = 1 / t;
 
   if (t > 99999) {
@@ -307,7 +219,7 @@ double fixTime(double t) {
   }
 
   t = 1 / t;
-
+*/
   return t;
 }
 
@@ -338,6 +250,7 @@ uint8_t getND(uint8_t ndIndex) {
 }
 
 // Calculate new exposure value and display it.
+
 void refresh() {
   ISOMenu = false;
   mainScreen = true;
@@ -347,8 +260,7 @@ void refresh() {
 
   float T = getTimeByIndex(T_expIndex);
   float A = getApertureByIndex(apertureIndex);
-  long  iso = getISOByIndex(ISOIndex);
-
+  float iso = getISOByIndex(ISOIndex);
   uint8_t ndStop = getND(ndIndex);
 
   // if ND filter is configured then make corrections.
@@ -410,123 +322,141 @@ void refresh() {
     Tfr = round(1 / T);
   }
 
-  uint8_t linePos[] = {15, 37};
-  display.clearDisplay();
-  display.setTextColor(WHITE);
+// Begin screen print:
 
-  display.setTextSize(1);
-  display.setCursor(13, 1);
-  display.print(F("ISO:"));
+  uint8_t linePos[] = {3, 5};
+  oled.clear();
+  oled.set1X();
+  oled.setCursor(13, 1);
+  oled.print(F("ISO:"));
 
-  if (iso > 999999) {
-    display.print(iso / 1000000.0, 2);
-    display.print(F("M"));
-  } else if (iso > 9999) {
-    display.print(iso / 1000.0, 0);
-    display.print(F("K"));
+  if (iso > 13) {
+    oled.print(iso, 0);
   } else {
-    display.print(iso);
-  }
-  display.drawLine(0, 10, 128, 10, WHITE); // LINE DIVISOR
+    oled.print(iso, 1);
+  } 
 
-  display.setCursor(10, linePos[0]);
-  display.setTextSize(2);
-  display.print(F("f/"));
+  oled.setCursor(0, 2);
+  oled.print(F("---------------------"));
+
+// Display f/stop
+
+  oled.setCursor(10, linePos[0]);
+
+  oled.set2X();
+  oled.print(F("f/"));
   if (A > 0) {
     if (A >= 100) {
-      display.print(A, 0);
+      oled.print(A, 0);
     } else {
-      display.print(A, 1);
+      oled.print(A, 1);
     }
   } else {
     outOfrange();
   }
 
-  display.setTextSize(1);
+//  display.setTextSize(1);
 
   // battery indicator
-  display.drawRect(122, 1, 6, 8, WHITE);
-  display.drawLine(124, 0, 125, 0, WHITE);
+//  display.drawRect(122, 1, 6, 8, WHITE);
+//  display.drawLine(124, 0, 125, 0, WHITE);
+
 
   // battery indicator for 2 elements of 1.5v each.
   if (battVolts > 270) {
     // full
-    display.fillRect(123, 1, 4, 7, WHITE);
+    // display.fillRect(123, 1, 4, 7, WHITE);
+    oled.setCursor(122, 0);
+    oled.print("F");
   } else if (battVolts > 240) {
     // medium
-    display.fillRect(123, 4, 4, 5, WHITE);
+    // display.fillRect(123, 4, 4, 5, WHITE);
+        oled.setCursor(122, 0);
+    oled.print("M");
+
   } else if (battVolts > 210) {
     // minimum
-    display.fillRect(123, 6, 4, 3, WHITE);
+    // display.fillRect(123, 6, 4, 3, WHITE);
+    oled.setCursor(122, 0);
+    oled.print("L");
+
   } else {
-    // empty
+    oled.setCursor(122, 0);
+    oled.print("E");
+
   }
 
+/*
   // Metering mode icon
-  display.setCursor(0, 1);
+  oled.setCursor(0, 1);
   if (meteringMode == 0) {
     // Ambient light
-    display.print(F("A"));
+    oled.print(F("A"));
   } else if (meteringMode == 1) {
     // Flash light
-    display.print(F("F"));
+    oled.print(F("F"));
   }
   // End of metering mode icon
 
-  display.setCursor(72, 1);
-  display.print(F("lx:"));
-  display.print(lux, 0);
+*/
+  oled.setCursor(67, 1);
+  oled.set1X();
+  oled.print(F("lux:"));
+  oled.print(lux, 0);
 
-  display.drawLine(95, linePos[0] - 1, 95, linePos[0] + 17, WHITE); // LINE DIVISOR
-  display.setTextSize(1);
-  display.setCursor(100, linePos[0]);
-  display.print(F("EV: "));
-  display.setCursor(100, linePos[0] + 10);
+//  display.drawLine(95, linePos[0] - 1, 95, linePos[0] + 17, WHITE); // LINE DIVISOR
+//  display.setTextSize(1);
+  oled.setCursor(100, linePos[0]);
+  oled.print(F("| EV: "));
+  oled.setCursor(100, linePos[0] + 1);
   if (lux > 0) {
-    display.println(EV, 0);
+    oled.print(F("| "));	
+    oled.println(EV, 0);
   } else {
-    display.println(0, 0);
+    oled.println(0, 0);
   }
-
+/*
 // ND filter indicator
   if (ndIndex > 0) {
-    //display.drawLine(0, 55, 128, 55, WHITE); // LINE DIVISOR
-    display.setTextSize(1);
-    display.setCursor(0, 57);
-    display.print(F("ND"));
-    //display.setCursor(100, linePos[0] + 10);
-    display.print(pow(2, ndIndex), 0);
-    display.print(F("="));
-    display.println(ndStop / 10.0, 1);
+    // display.drawLine(0, 55, 128, 55, WHITE); // LINE DIVISOR
+    // display.setTextSize(1);
+    oled.setCursor(0, 57);
+    oled.print(F("ND"));
+    // display.setCursor(100, linePos[0] + 10);
+    oled.print(pow(2, ndIndex), 0);
+    oled.print(F("="));
+    oled.println(ndStop / 10.0, 1);
   }
-
-  display.setTextSize(2);
-  display.setCursor(10, linePos[1]);
-  display.print(F("T:"));
+*/
+//  display.setTextSize(2);
+  oled.set2X();
+  oled.setCursor(10, linePos[1]);
+  oled.print(F("T:"));
 
   if (Tdisplay == 0) {
-    display.print(Tmin, 1);
-    display.print(F("m"));
+    oled.print(Tmin, 1);
+    oled.print(F("m"));
   } else if (Tdisplay == 1) {
     if (T > 0) {
-      display.print(F("1/"));
-      display.print(Tfr, 0);
+      oled.print(F("1/"));
+      oled.print(Tfr, 0);
     } else {
       outOfrange();
     }
   } else if (Tdisplay == 2) {
-    display.print(T, 1);
-    display.print(F("s"));
+    oled.print(T, 1);
+    oled.print(F("s"));
   } else if (Tdisplay == 3) {
     outOfrange();
   }
 
   // priority marker (shutter or aperture priority indicator)
-  display.setTextSize(1);
-  display.setCursor(0, linePos[modeIndex] + 5);
-  display.print(F("*"));
+//  display.setTextSize(1);
+  oled.set1X();
+  oled.setCursor(0, linePos[modeIndex] + 1);
+  oled.print(F("*"));
 
-  display.display();
+//  oled.display();
 }
 
 void showISOMenu() {
@@ -534,81 +464,68 @@ void showISOMenu() {
   NDMenu = false;
   mainScreen = false;
 
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setCursor(50, 4);
-  display.println(F("ISO"));
-  display.setTextSize(3);
+  oled.clear();
+  oled.set2X();
+  oled.setCursor(50, 0);
+  oled.println(F("ISO:"));
 
-  long iso = getISOByIndex(ISOIndex);
-
-  if (iso > 999999) {
-    display.setCursor(0, 40);
-  } else if (iso > 99999) {
-    display.setCursor(10, 40);
-  } else if (iso > 9999) {
-    display.setCursor(20, 40);
-  } else if (iso > 999) {
-    display.setCursor(30, 40);
-  } else if (iso > 99) {
-    display.setCursor(40, 40);
+  float iso = getISOByIndex(ISOIndex);
+  oled.setCursor(51, 3);
+  if (iso > 13) {
+    oled.print(iso, 0);
   } else {
-    display.setCursor(50, 40);
+    oled.print(iso, 1);
   }
-
-  display.print(iso);
-
-  display.display();
   delay(200);
 }
-
+/* 
 void showNDMenu() {
   ISOMenu = false;
   mainScreen = false;
   NDMenu = true;
 
-  display.clearDisplay();
-  display.setTextSize(2);
-  display.setCursor(10, 4);
-  display.println(F("ND Filter"));
-  display.setTextSize(3);
+  oled.clear();
+//  oled.setTextSize(2);
+  oled.setCursor(10, 1);
+  oled.println(F("ND Filter"));
+//  display.setTextSize(3);
 
   if (ndIndex > 9) {
-    display.setCursor(10, 40);
+    oled.setCursor(10, 40);
   } else if (ndIndex > 6) {
-    display.setCursor(20, 40);
+    oled.setCursor(20, 40);
   } else if (ndIndex > 3) {
-    display.setCursor(30, 40);
+    oled.setCursor(30, 40);
   } else {
-    display.setCursor(40, 40);
+    oled.setCursor(40, 40);
   }
 
   if (ndIndex > 0) {
-    display.print(F("ND"));
-    display.print(pow(2, ndIndex), 0);
+    oled.print(F("ND"));
+    oled.print(pow(2, ndIndex), 0);
   } else {
-    display.setTextSize(2);
-    display.setCursor(10, 40);
-    display.print(F("No filter"));
+//    oled.setTextSize(2);
+    oled.setCursor(10, 4);
+    oled.print(F("No filter"));
   }
 
-  display.display();
+//  display.display();
   delay(200);
 }
-
+*/
 // Navigation menu
 void menu() {
-  if (MenuButtonState == 0) {
+    if (MenuButtonState == 0) {
     if (mainScreen) {
       showISOMenu();
-    } else if (ISOMenu) {
-      showNDMenu();
+ //   }  else if (ISOMenu) {
+//      showNDMenu();
     } else {
       refresh();
       delay(200);
     }
   }
-
+/*
   if (NDMenu) {
     if (PlusButtonState == 0) {
       ndIndex++;
@@ -626,8 +543,9 @@ void menu() {
 
     if (PlusButtonState == 0 || MinusButtonState == 0) {
       showNDMenu();
-    }
-  }
+    } 
+  } */
+
 
   if (ISOMenu) {
     // ISO change mode
@@ -664,7 +582,7 @@ void menu() {
     refresh();
     delay(200);
   }
-
+/*
   if (mainScreen && MeteringModeButtonState == 0) {
     // Switch between Ambient light and Flash light metering
     if (meteringMode == 0) {
@@ -676,7 +594,7 @@ void menu() {
     refresh();
     delay(200);
   }
-
+*/
   if (mainScreen && (PlusButtonState == 0 || MinusButtonState == 0)) {
     if (modeIndex == 0) {
       // Aperture priority mode
@@ -729,6 +647,5 @@ void readButtons() {
   MeteringButtonState = digitalRead(MeteringButtonPin);
   ModeButtonState = digitalRead(ModeButtonPin);
   MenuButtonState = digitalRead(MenuButtonPin);
-  MeteringModeButtonState = digitalRead(MeteringModeButtonPin);
+//  MeteringModeButtonState = digitalRead(MeteringModeButtonPin);
 }
-
