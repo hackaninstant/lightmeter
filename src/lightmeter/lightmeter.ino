@@ -1,17 +1,18 @@
-#include <SPI.h>
+// #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include "SSD1306Ascii.h"
+#include "SSD1306AsciiWire.h"
 #include <BH1750.h>
 #include <EEPROM.h>
 #include <avr/sleep.h>
 
-#define OLED_DC                 11
-#define OLED_CS                 12
-#define OLED_CLK                8 //10
-#define OLED_MOSI               9 //9
-#define OLED_RESET              10 //13
-Adafruit_SSD1306 display(OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
+// 0X3C+SA0 - 0x3C or 0x3D
+#define I2C_ADDRESS 0x3C
+
+// Define proper RST_PIN if required.
+#define RST_PIN -1
+
+SSD1306AsciiWire oled;
 
 BH1750 lightMeter;
 
@@ -21,7 +22,7 @@ BH1750 lightMeter;
 #define MinusButtonPin          4                       // Minus button pin
 #define ModeButtonPin           5                       // Mode button pin
 #define MenuButtonPin           6                       // ISO button pin
-#define MeteringModeButtonPin   7                       // Metering Mode (Ambient / Flash)
+// #define MeteringModeButtonPin   7                       // Metering Mode (Ambient / Flash)
 //#define PowerButtonPin          2
 
 #define MaxISOIndex             57
@@ -41,7 +42,7 @@ boolean MinusButtonState;               // "-" button state
 boolean MeteringButtonState;            // Metering button state
 boolean ModeButtonState;                // Mode button state
 boolean MenuButtonState;                // ISO button state
-boolean MeteringModeButtonState;        // Metering mode button state (Ambient / Flash)
+// boolean MeteringModeButtonState;        // Metering mode button state (Ambient / Flash)
 
 boolean ISOMenu = false;
 boolean NDMenu = false;
@@ -52,11 +53,11 @@ boolean mainScreen = false;
 #define apertureIndexAddr   2
 #define modeIndexAddr       3
 #define T_expIndexAddr      4
-#define meteringModeAddr    5
+// #define meteringModeAddr    5
 #define ndIndexAddr         6
 
 #define defaultApertureIndex 12
-#define defaultISOIndex      11
+#define defaultISOIndex      21
 #define defaultModeIndex     0
 #define defaultT_expIndex    19
 
@@ -64,14 +65,16 @@ uint8_t ISOIndex =          EEPROM.read(ISOIndexAddr);
 uint8_t apertureIndex =     EEPROM.read(apertureIndexAddr);
 uint8_t T_expIndex =        EEPROM.read(T_expIndexAddr);
 uint8_t modeIndex =         EEPROM.read(modeIndexAddr);
-uint8_t meteringMode =      EEPROM.read(meteringModeAddr);
+// uint8_t meteringMode =      EEPROM.read(meteringModeAddr);
 uint8_t ndIndex =           EEPROM.read(ndIndexAddr);
+
 
 int battVolts;
 #define batteryInterval 10000
 double lastBatteryTime = 0;
 
-#include "lightmeter.h"
+
+#include "lightmeterascii.h"
 
 void setup() {  
   pinMode(PlusButtonPin, INPUT_PULLUP);
@@ -79,19 +82,20 @@ void setup() {
   pinMode(MeteringButtonPin, INPUT_PULLUP);
   pinMode(ModeButtonPin, INPUT_PULLUP);
   pinMode(MenuButtonPin, INPUT_PULLUP);
-  pinMode(MeteringModeButtonPin, INPUT_PULLUP);
+ //  pinMode(MeteringModeButtonPin, INPUT_PULLUP);
 
-  //Serial.begin(115200);
+// Serial.begin(115200);
 
-  battVolts = getBandgap();  //Determins what actual Vcc is, (X 100), based on known bandgap voltage
+ // battVolts = getBandgap();  //Determins what actual Vcc is, (X 100), based on known bandgap voltage
 
   Wire.begin();
   lightMeter.begin(BH1750::ONE_TIME_HIGH_RES_MODE_2);
   //lightMeter.begin(BH1750::ONE_TIME_LOW_RES_MODE); // for low resolution but 16ms light measurement time.
 
-  display.begin(SSD1306_SWITCHCAPVCC, 0x3D);
-  display.setTextColor(WHITE);
-  display.clearDisplay();
+  oled.begin(&Adafruit128x64, I2C_ADDRESS);
+  oled.setFont(Adafruit5x7);
+  oled.clear();
+
 
   // IF NO MEMORY WAS RECORDED BEFORE, START WITH THIS VALUES otherwise it will read "255"
   if (apertureIndex > MaxApertureIndex) {
@@ -111,10 +115,10 @@ void setup() {
     modeIndex = 0;
   }
 
-  if (meteringMode > 1) {
+  /* if (meteringMode > 1) {
     meteringMode = 0;
   }
-
+*/
   if (ndIndex > MaxNDIndex) {
     ndIndex = 0;
   }
@@ -124,10 +128,10 @@ void setup() {
 }
 
 void loop() {  
-  if (millis() >= lastBatteryTime + batteryInterval) {
-    lastBatteryTime = millis();
-    battVolts = getBandgap();
-  }
+//  if (millis() >= lastBatteryTime + batteryInterval) {
+//    lastBatteryTime = millis();
+//    battVolts = getBandgap();
+//  }
   
   readButtons();
 
@@ -140,7 +144,7 @@ void loop() {
     lux = 0;
     refresh();
     
-    if (meteringMode == 0) {
+    // if (meteringMode == 0) {
       // Ambient light meter mode.
       lightMeter.configure(BH1750::ONE_TIME_HIGH_RES_MODE_2);
 
@@ -153,6 +157,7 @@ void loop() {
 
       refresh();
       delay(200);
+    /*
     } else if (meteringMode == 1) {
       // Flash light metering
       lightMeter.configure(BH1750::CONTINUOUS_LOW_RES_MODE);
@@ -176,6 +181,6 @@ void loop() {
       }
 
       refresh();
-    }
+    } */
   }
 }
