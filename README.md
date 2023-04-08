@@ -16,7 +16,7 @@ Uses SSD1306Ascii.h instead of Adafruit to save space
 Components:
 1. Arduino NANO v.3 ATMEGA 168 (16K)
 2. BH1750 light sensor https://www.banggood.com/custlink/mKDv2Ip1dr or https://www.banggood.com/custlink/GvGvnRNN0e
-3. SSD1306 128*64 OLED IC2 Display
+3. SSD1306 128*64 OLED IC2 Display wired in parallel to A4 & A5
 5. 50x70 PCB https://www.banggood.com/custlink/KvvvnybQAP
 6. AAA battery Holder https://www.banggood.com/custlink/vK3KsynANN
 
