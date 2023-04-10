@@ -14,22 +14,13 @@ void SaveSettings() {
 
 // Returns actual value of Vcc (x 100)
 int getBandgap(void) {
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-  // For mega boards
-  const long InternalReferenceVoltage = 1115L;  // Adjust this value to your boards specific internal BG voltage x1000
-  // REFS1 REFS0          --> 0 1, AVcc internal ref. -Selects AVcc reference
-  // MUX4 MUX3 MUX2 MUX1 MUX0  --> 11110 1.1V (VBG)         -Selects channel 30, bandgap voltage, to measure
-  ADMUX = (0 << REFS1) | (1 << REFS0) | (0 << ADLAR) | (0 << MUX5) | (1 << MUX4) | (1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (0 << MUX0);
-
-#else
   // For 168/328 boards
   const long InternalReferenceVoltage = 1056L;  // Adjust this value to your boards specific internal BG voltage x1000
   // REFS1 REFS0          --> 0 1, AVcc internal ref. -Selects AVcc external reference
   // MUX3 MUX2 MUX1 MUX0  --> 1110 1.1V (VBG)         -Selects channel 14, bandgap voltage, to measure
   ADMUX = (0 << REFS1) | (1 << REFS0) | (0 << ADLAR) | (1 << MUX3) | (1 << MUX2) | (1 << MUX1) | (0 << MUX0);
 
-#endif
-  delay(50);  // Let mux settle a little to get a more stable A/D conversion
+  delay(100);  // Let mux settle a little to get a more stable A/D conversion
   // Start a conversion
   ADCSRA |= _BV( ADSC );
   // Wait for it to complete
@@ -40,17 +31,12 @@ int getBandgap(void) {
   return results;
 } 
 
-void footer() {
-  oled.setCursor(0, 55);
-  oled.print(F("press M"));
-}
-
 /*
   Get light value
 */
 float getLux() {
   uint16_t lux = lightMeter.readLightLevel();
-
+/*
   if (lux >= 65534) {
     // light sensor is overloaded.
     Overflow = 1;
@@ -58,7 +44,7 @@ float getLux() {
   } else {
     Overflow = 0;
   }
-
+*/
   return lux * DomeMultiplier;             // DomeMultiplier = 2.17 (calibration)*/
 }
 
@@ -69,6 +55,11 @@ float log2(float x) {
 float lux2ev(float lux) {
   return log2(lux / 2.5);
 }
+/*
+float lux2ev(float lux) {
+  return (log(lux) / log(2)) / 2.5;
+}
+*/
 
 // return aperture value (1.4, 1.8, 2.0) by index in sequence (0, 1, 2, 3, ...).
 float getApertureByIndex(uint8_t indx) {
@@ -151,16 +142,14 @@ float getTimeByIndex(uint8_t indx) {
     indx = 0;
   }
 
-  float shutterspeedvalues[] = {100, 80, 64, 50, 40, 32, 25, 20, 15, 12.5};
-  float factor = floor(indx / 10) - 2; // get multiplying factor
+  float factor = floor(indx / 10) - 2; // get multiplying factor from remainder of index
   factor = -factor; // invert
-  float t = shutterspeedvalues[indx % 10] * pow(10, factor);
-  t = 1 / t;
+  float t = spvalues[indx % 10] * pow(10, factor); // look up shutter speed by remainder of index and multiply by factor
+  t = 1 / t; // convert to actual shutter speed in seconds
   return t;
 }
 
-// Convert calculated time (in seconds) to photograpy style shutter speed. 
-
+// Convert calculated time (in seconds) to rounded shutter speed. 
 
 double fixTime(double t) {
   double divider = 1;
@@ -171,45 +160,32 @@ double fixTime(double t) {
     return maxTime;
   }
 
-/*
   t = 1 / t;
 
-  if (t > 99999) {
-    divider = 10000;
-  } else if (t > 9999) {
-    divider = 1000;
-  } else if (t > 999) {
-    divider = 100;
-  } else if (t > 99) {
-    divider = 10;
+  float t1 = t;
+  while (t1 > 99) {
+  t1 = t1 / 10;
+  divider = divider * 10;
   }
 
   t = t / divider;
+  
+  if (t >= 10) {  // get closest value only if shutter speed is a fraction of a second
+  int i = 0;
+  while (t < spvalues[i]) {
+  i++;
+  } 
 
-  if (t >= 10 && t <= 12.5) {
-    t = getMinDistance(t, 10, 12.5);
-  } else if (t >= 12.5 && t <= 16) {
-    t = getMinDistance(t, 12.5, 16);
-  } else if (t >= 16 && t <= 20) {
-    t = getMinDistance(t, 16, 20);
-  } else if (t >= 20 && t <= 25) {
-    t = getMinDistance(t, 20, 25);
-  } else if (t >= 25 && t <= 32) {
-    t = getMinDistance(t, 25, 32);
-  } else if (t >= 32 && t <= 40) {
-    t = getMinDistance(t, 32, 40);
-  } else if (t >= 40 && t <= 50) {
-    t = getMinDistance(t, 40, 50);
-  } else if (t >= 50 && t <= 64) {
-    t = getMinDistance(t, 50, 64);
-  } else if (t >= 64 && t <= 80) {
-    t = getMinDistance(t, 64, 80);
-  } else if (t >= 80 && t <= 100) {
-    t = getMinDistance(t, 80, 100);
+// round shutter speed values
+  if (t - spvalues[i] < spvalues[i-1] - t) {
+  t=spvalues[i];
+  } else {
+  t = spvalues[i-1];
+  }
   }
 
   t = t * divider;
-
+/*
   if (t == 32) {
     t = 30;
   }
@@ -217,9 +193,9 @@ double fixTime(double t) {
   if (t == 16) {
     t = 15;
   }
-
-  t = 1 / t;
 */
+  t = 1 / t;
+
   return t;
 }
 
@@ -237,10 +213,8 @@ float fixAperture(float a) {
   return 0;
 }
 
+// Get ND from index
 /*
-  Return ND from ndIndex
-  int ND[] = {0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48}; // eg.: 1) 0.3 ND = -1 stop = 2^2 = 4; 2) 0.9 ND = -3 stop = 2^3 = 16;
-*/
 uint8_t getND(uint8_t ndIndex) {
   if (ndIndex == 0) {
     return 0;
@@ -248,7 +222,7 @@ uint8_t getND(uint8_t ndIndex) {
 
   return 3 + (ndIndex - 1) * 3;
 }
-
+*/
 // Calculate new exposure value and display it.
 
 void refresh() {
@@ -261,7 +235,7 @@ void refresh() {
   float T = getTimeByIndex(T_expIndex);
   float A = getApertureByIndex(apertureIndex);
   float iso = getISOByIndex(ISOIndex);
-  uint8_t ndStop = getND(ndIndex);
+//  uint8_t ndStop = getND(ndIndex);
 
   // if ND filter is configured then make corrections.
   // As ISO is a main operand in all EV calculations we can adjust ISO by ND filter factor.
@@ -327,7 +301,7 @@ void refresh() {
   uint8_t linePos[] = {3, 5};
   oled.clear();
   oled.set1X();
-  oled.setCursor(13, 1);
+  oled.setCursor(3, 1);
   oled.print(F("ISO:"));
 
   if (iso > 13) {
@@ -337,7 +311,11 @@ void refresh() {
   } 
 
   oled.setCursor(0, 2);
-  oled.print(F("---------------------"));
+  int count = 1;
+  while (count < 22) {
+    oled.print(F("-"));
+    count++;
+  }
 
 // Display f/stop
 
@@ -355,80 +333,46 @@ void refresh() {
     outOfrange();
   }
 
-//  display.setTextSize(1);
-
-  // battery indicator
-//  display.drawRect(122, 1, 6, 8, WHITE);
-//  display.drawLine(124, 0, 125, 0, WHITE);
-
-
   // battery indicator for 2 elements of 1.5v each.
-  if (battVolts > 270) {
-    // full
-    // display.fillRect(123, 1, 4, 7, WHITE);
-    oled.setCursor(122, 0);
-    oled.print("F");
-  } else if (battVolts > 240) {
-    // medium
-    // display.fillRect(123, 4, 4, 5, WHITE);
-        oled.setCursor(122, 0);
-    oled.print("M");
-
-  } else if (battVolts > 210) {
-    // minimum
-    // display.fillRect(123, 6, 4, 3, WHITE);
-    oled.setCursor(122, 0);
-    oled.print("L");
-
+  oled.setCursor(112,0);
+  if (battVolts > 300) {
+   oled.print(F("F"));
+  } else if (battVolts > 280) {
+    oled.print(F("M"));
+  } else if (battVolts > 260) {
+    oled.print(F("L")); 
   } else {
-    oled.setCursor(122, 0);
-    oled.print("E");
-
+    oled.print(F("E"));
   }
 
-/*
-  // Metering mode icon
-  oled.setCursor(0, 1);
-  if (meteringMode == 0) {
-    // Ambient light
-    oled.print(F("A"));
-  } else if (meteringMode == 1) {
-    // Flash light
-    oled.print(F("F"));
-  }
-  // End of metering mode icon
-
-*/
-  oled.setCursor(67, 1);
+  oled.setCursor(57, 1);
   oled.set1X();
   oled.print(F("lux:"));
   oled.print(lux, 0);
 
-//  display.drawLine(95, linePos[0] - 1, 95, linePos[0] + 17, WHITE); // LINE DIVISOR
-//  display.setTextSize(1);
-  oled.setCursor(100, linePos[0]);
+//display EV number
+  oled.setCursor(95, linePos[0]);
   oled.print(F("| EV: "));
-  oled.setCursor(100, linePos[0] + 1);
+  oled.setCursor(95, linePos[0] + 1);
   if (lux > 0) {
     oled.print(F("| "));	
-    oled.println(EV, 0);
+    oled.println(EV, 1);
   } else {
     oled.println(0, 0);
   }
-/*
+
 // ND filter indicator
   if (ndIndex > 0) {
-    // display.drawLine(0, 55, 128, 55, WHITE); // LINE DIVISOR
-    // display.setTextSize(1);
-    oled.setCursor(0, 57);
+   oled.setCursor(0, 7);
     oled.print(F("ND"));
-    // display.setCursor(100, linePos[0] + 10);
     oled.print(pow(2, ndIndex), 0);
-    oled.print(F("="));
-    oled.println(ndStop / 10.0, 1);
+//    oled.print(F(" = "));
+//    oled.println(ndStop / 10.0, 1);
+    oled.print(F(" = -"));
+    oled.print(ndIndex);
+    oled.print(F(" stops"));
   }
-*/
-//  display.setTextSize(2);
+
   oled.set2X();
   oled.setCursor(10, linePos[1]);
   oled.print(F("T:"));
@@ -451,12 +395,11 @@ void refresh() {
   }
 
   // priority marker (shutter or aperture priority indicator)
-//  display.setTextSize(1);
+
   oled.set1X();
-  oled.setCursor(0, linePos[modeIndex] + 1);
+  oled.setCursor(0, linePos[modeIndex]);
   oled.print(F("*"));
 
-//  oled.display();
 }
 
 void showISOMenu() {
@@ -478,54 +421,42 @@ void showISOMenu() {
   }
   delay(200);
 }
-/* 
+
 void showNDMenu() {
   ISOMenu = false;
   mainScreen = false;
   NDMenu = true;
 
   oled.clear();
-//  oled.setTextSize(2);
-  oled.setCursor(10, 1);
-  oled.println(F("ND Filter"));
-//  display.setTextSize(3);
-
-  if (ndIndex > 9) {
-    oled.setCursor(10, 40);
-  } else if (ndIndex > 6) {
-    oled.setCursor(20, 40);
-  } else if (ndIndex > 3) {
-    oled.setCursor(30, 40);
-  } else {
-    oled.setCursor(40, 40);
-  }
-
+  oled.set2X();
+  oled.setCursor(5, 0);
+  oled.print(F("ND Filter:"));
+  oled.setCursor(40, 4);
   if (ndIndex > 0) {
     oled.print(F("ND"));
     oled.print(pow(2, ndIndex), 0);
   } else {
-//    oled.setTextSize(2);
-    oled.setCursor(10, 4);
-    oled.print(F("No filter"));
+//    oled.set2X();
+    oled.setCursor(35, 4);
+    oled.print(F("NONE"));
   }
 
-//  display.display();
   delay(200);
 }
-*/
+
 // Navigation menu
 void menu() {
     if (MenuButtonState == 0) {
     if (mainScreen) {
       showISOMenu();
- //   }  else if (ISOMenu) {
-//      showNDMenu();
+    }  else if (ISOMenu) {
+      showNDMenu();
     } else {
       refresh();
       delay(200);
     }
   }
-/*
+
   if (NDMenu) {
     if (PlusButtonState == 0) {
       ndIndex++;
@@ -544,7 +475,7 @@ void menu() {
     if (PlusButtonState == 0 || MinusButtonState == 0) {
       showNDMenu();
     } 
-  } */
+  } 
 
 
   if (ISOMenu) {
@@ -582,19 +513,7 @@ void menu() {
     refresh();
     delay(200);
   }
-/*
-  if (mainScreen && MeteringModeButtonState == 0) {
-    // Switch between Ambient light and Flash light metering
-    if (meteringMode == 0) {
-      meteringMode = 1;
-    } else {
-      meteringMode = 0;
-    }
 
-    refresh();
-    delay(200);
-  }
-*/
   if (mainScreen && (PlusButtonState == 0 || MinusButtonState == 0)) {
     if (modeIndex == 0) {
       // Aperture priority mode
@@ -647,5 +566,5 @@ void readButtons() {
   MeteringButtonState = digitalRead(MeteringButtonPin);
   ModeButtonState = digitalRead(ModeButtonPin);
   MenuButtonState = digitalRead(MenuButtonPin);
-//  MeteringModeButtonState = digitalRead(MeteringModeButtonPin);
+//  NDModeButtonState = digitalRead(NDModeButtonPin);
 }
