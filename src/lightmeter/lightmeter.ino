@@ -75,7 +75,7 @@ double lastBatteryTime = 0;
 
 float spvalues[] = {100, 80, 64, 50, 40, 32, 25, 20, 15, 12.5, 10};
 
-#include "lightmeter.h"
+#include "lightmeterascii.h"
 
 void setup() {  
   pinMode(PlusButtonPin, INPUT_PULLUP);
@@ -143,12 +143,12 @@ void loop() {
     SaveSettings();
 
     lux = 0;
-    refresh();
-    
+    // refresh();
+    oled.clear(); 
     // if (meteringMode == 0) {
       // Ambient light meter mode.
       lightMeter.configure(BH1750::ONE_TIME_HIGH_RES_MODE_2);
-
+      delay(500); // give 1/2 sec for things to settle
       lux = getLux();
 
       if (Overflow == 1) {
