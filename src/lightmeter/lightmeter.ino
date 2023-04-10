@@ -4,7 +4,7 @@
 #include "SSD1306AsciiWire.h"
 #include <BH1750.h>
 #include <EEPROM.h>
-#include <avr/sleep.h>
+// #include <avr/sleep.h> 
 
 // 0X3C+SA0 - 0x3C or 0x3D
 #define I2C_ADDRESS 0x3C
@@ -22,14 +22,14 @@ BH1750 lightMeter;
 #define MinusButtonPin          4                       // Minus button pin
 #define ModeButtonPin           5                       // Mode button pin
 #define MenuButtonPin           6                       // ISO button pin
-// #define MeteringModeButtonPin   7                       // Metering Mode (Ambient / Flash)
+// #define MeteringModeButtonPin         7                       // Metering Mode (Ambient / Flash)
 //#define PowerButtonPin          2
 
 #define MaxISOIndex             57
 #define MaxApertureIndex        70
 #define MaxTimeIndex            80
 #define MaxNDIndex              13
-#define MaxFlashMeteringTime    5000                    // ms
+// #define MaxFlashMeteringTime    5000                    // ms
 
 float   lux;
 boolean Overflow = 0;                                   // Sensor got Saturated and Display "Overflow"
@@ -42,7 +42,7 @@ boolean MinusButtonState;               // "-" button state
 boolean MeteringButtonState;            // Metering button state
 boolean ModeButtonState;                // Mode button state
 boolean MenuButtonState;                // ISO button state
-// boolean MeteringModeButtonState;        // Metering mode button state (Ambient / Flash)
+// boolean NDModeButtonState;        // Metering mode button state (Ambient / Flash)
 
 boolean ISOMenu = false;
 boolean NDMenu = false;
@@ -73,8 +73,9 @@ int battVolts;
 #define batteryInterval 10000
 double lastBatteryTime = 0;
 
+float spvalues[] = {100, 80, 64, 50, 40, 32, 25, 20, 15, 12.5, 10};
 
-#include "lightmeterascii.h"
+#include "lightmeter.h"
 
 void setup() {  
   pinMode(PlusButtonPin, INPUT_PULLUP);
@@ -86,7 +87,7 @@ void setup() {
 
 // Serial.begin(115200);
 
- // battVolts = getBandgap();  //Determins what actual Vcc is, (X 100), based on known bandgap voltage
+  battVolts = getBandgap();  //Determins what actual Vcc is, (X 100), based on known bandgap voltage
 
   Wire.begin();
   lightMeter.begin(BH1750::ONE_TIME_HIGH_RES_MODE_2);
