@@ -48,6 +48,7 @@ float getLux() {
   return lux * DomeMultiplier;             // DomeMultiplier = 2.17 (calibration)*/
 }
 
+// convert lux value to EV
 float log2(float x) {
   return log(x) / log(2);
 }
@@ -115,28 +116,26 @@ float getApertureByIndex(uint8_t indx) {
   return f;
 }
 
-// Return ISO value (100, 200, 400, ...) by index in sequence (0, 1, 2, 3, ...).
-
+// Return ISO value by index
 float getISOByIndex(uint8_t indx) {
   if (indx < 0 || indx > MaxISOIndex) {
     indx = 0;
   }
 
   float isoValues[] = {.8, 1, 1.25, 1.6, 2, 2.5, 3.2, 4, 5, 6.4};
-  float iso = isoValues[indx % 10] * pow(10, floor(indx / 10));
-
+  float iso = isoValues[indx % 10] * pow(10, floor(indx / 10)); // get ISO value from array
   return iso;
-
 }
 
+// round out aperture values
 float getMinDistance(float x, float v1, float v2) {
   if (x - v1 > v2 - x) {
     return v2;
   }
-
   return v1;
 }
 
+// get shutter speed by index
 float getTimeByIndex(uint8_t indx) {
   if (indx < 0 || indx >= MaxTimeIndex) {
     indx = 0;
@@ -162,12 +161,12 @@ double fixTime(double t) {
 
   t = 1 / t;
 
+// reduce number to between 1 - 100 
   float t1 = t;
   while (t1 > 99) {
   t1 = t1 / 10;
   divider = divider * 10;
   }
-
   t = t / divider;
   
   if (t >= 10) {  // get closest value only if shutter speed is a fraction of a second
@@ -176,13 +175,18 @@ double fixTime(double t) {
   i++;
   } 
 
-// round shutter speed values
+// round shutter speed values to closest value
+
   if (t - spvalues[i] < spvalues[i-1] - t) {
   t=spvalues[i];
   } else {
   t = spvalues[i-1];
   }
   }
+
+//  t = getMinDistance(t, spvalues[i], spvalues[i-1]); // gets a weird compile error
+
+// return shutter speed back to real value
 
   t = t * divider;
 /*
@@ -237,9 +241,7 @@ void refresh() {
   float iso = getISOByIndex(ISOIndex);
 //  uint8_t ndStop = getND(ndIndex);
 
-  // if ND filter is configured then make corrections.
-  // As ISO is a main operand in all EV calculations we can adjust ISO by ND filter factor.
-  // if ND4 (ND 0.6) filter is configured then we need to adjust ISO to -2 full stops. Ex. 800 to 200
+// if ND filter is configured then make corrections.
   if (ndIndex > 0) {
     ISOND = iso / (pow(2, ndIndex));
   } else {
@@ -304,6 +306,7 @@ void refresh() {
   oled.setCursor(3, 1);
   oled.print(F("ISO:"));
 
+// decimal point only if ISO is under 13
   if (iso > 13) {
     oled.print(iso, 0);
   } else {
@@ -324,7 +327,7 @@ void refresh() {
   oled.set2X();
   oled.print(F("f/"));
   if (A > 0) {
-    if (A >= 100) {
+    if (A > 13) {
       oled.print(A, 0);
     } else {
       oled.print(A, 1);
@@ -339,7 +342,7 @@ void refresh() {
    oled.print(F("F"));
   } else if (battVolts > 280) {
     oled.print(F("M"));
-  } else if (battVolts > 260) {
+  } else if (battVolts > 250) {
     oled.print(F("L")); 
   } else {
     oled.print(F("E"));
@@ -370,7 +373,10 @@ void refresh() {
 //    oled.println(ndStop / 10.0, 1);
     oled.print(F(" = -"));
     oled.print(ndIndex);
-    oled.print(F(" stops"));
+    oled.print(F(" stop"));
+    if (ndIndex > 1) {
+    oled.print(F("s"));
+    }
   }
 
   oled.set2X();
