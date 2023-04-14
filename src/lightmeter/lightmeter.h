@@ -1,5 +1,5 @@
 void outOfrange() {
-  oled.println(F("--"));
+  oled.print(F("--"));
 }
 
 void SaveSettings() {
@@ -13,7 +13,7 @@ void SaveSettings() {
 }
 
 // Returns actual value of Vcc (x 100)
-int getBandgap(void) {
+float getBandgap(void) {
   // For 168/328 boards
   const long InternalReferenceVoltage = 1056L;  // Adjust this value to your boards specific internal BG voltage x1000
   // REFS1 REFS0          --> 0 1, AVcc internal ref. -Selects AVcc external reference
@@ -26,9 +26,9 @@ int getBandgap(void) {
   // Wait for it to complete
   while ( ( (ADCSRA & (1 << ADSC)) != 0 ) );
   // Scale the value
-  int results = (((InternalReferenceVoltage * 1024L) / ADC) + 5L) / 10L; // calculates for straight line value
+  float results = (((InternalReferenceVoltage * 1024L) / ADC) + 5L) / 10L; // calculates for straight line value
 
-  return results;
+  return results/100;
 } 
 
 /*
@@ -56,63 +56,11 @@ float log2(float x) {
 float lux2ev(float lux) {
   return log2(lux / 2.5);
 }
-/*
-float lux2ev(float lux) {
-  return (log(lux) / log(2)) / 2.5;
-}
-*/
+
 
 // return aperture value (1.4, 1.8, 2.0) by index in sequence (0, 1, 2, 3, ...).
 float getApertureByIndex(uint8_t indx) {
-  float roundIndx = 10.0;
-
-  if (indx > 39) {
-    roundIndx = 1;
-  }
-
-  float f = round(pow(2, indx / 3.0 * 0.5) * roundIndx) / roundIndx;
-
-  // the formula returns exact value, but photographers uses more memorable values.
-  // convert it.
-/**
-  if (f >= 1.1 && f < 1.2) {
-    f = 1.1;
-  } else if (f >= 1.2 && f < 1.4) {
-    f = 1.2;
-  } else if (f > 3.2 && f < 4) {
-    f = 3.5;
-  } else if (f > 5 && f < 6.3) {
-    f = 5.6;
-  } else if (f > 10 && f < 11) {
-    f = 10;
-  } else if (f >= 11 && f < 12) {
-    f = 11;
-  } else if (f >= 12 && f < 14) {
-    f = 13;
-  } else if (f >= 14 && f < 16) {
-    f = 14;
-  } else if (f >= 20 && f < 22) {
-    f = 20;
-  } else if (f >= 22 && f < 25) {
-    f = 22;
-  } else if (f >= 24 && f < 28) {
-    f = 25;
-  } else if (f >= 28 && f < 40) {
-    f = 36;
-  } else if (f >= 40 && f < 45) {
-    f = 40;
-  } else if (f >= 45 && f < 50) {
-    f = 45;
-  } else if (f >= 50 && f < 57) {
-    f = 51;
-  } else if (f >= 71 && f < 80) {
-    f = 72;
-  } else if (f >= 80 && f < 90) {
-    f = 80;
-  } else if (f >= 90 && f < 101) {
-    f = 90;
-  } */
-
+  float f = apvalues[indx];
   return f;
 }
 
@@ -122,11 +70,10 @@ float getISOByIndex(uint8_t indx) {
     indx = 0;
   }
 
-  float isoValues[] = {.8, 1, 1.25, 1.6, 2, 2.5, 3.2, 4, 5, 6.4};
   float iso = isoValues[indx % 10] * pow(10, floor(indx / 10)); // get ISO value from array
   return iso;
 }
-
+/* zz
 // round out aperture values
 float getMinDistance(float x, float v1, float v2) {
   if (x - v1 > v2 - x) {
@@ -134,6 +81,7 @@ float getMinDistance(float x, float v1, float v2) {
   }
   return v1;
 }
+*/
 
 // get shutter speed by index
 float getTimeByIndex(uint8_t indx) {
@@ -184,25 +132,15 @@ double fixTime(double t) {
   }
   }
 
-//  t = getMinDistance(t, spvalues[i], spvalues[i-1]); // gets a weird compile error
-
 // return shutter speed back to real value
 
   t = t * divider;
-/*
-  if (t == 32) {
-    t = 30;
-  }
-
-  if (t == 16) {
-    t = 15;
-  }
-*/
   t = 1 / t;
 
   return t;
 }
 
+/* zz
 // Convert calculated aperture value to photograpy style aperture value. 
 float fixAperture(float a) {
   for (int i = 0; i < MaxApertureIndex; i++) {
@@ -216,9 +154,10 @@ float fixAperture(float a) {
 
   return 0;
 }
-
-// Get ND from index
+*/
 /*
+// Get ND from index
+
 uint8_t getND(uint8_t ndIndex) {
   if (ndIndex == 0) {
     return 0;
@@ -238,6 +177,7 @@ void refresh() {
 
   float T = getTimeByIndex(T_expIndex);
   float A = getApertureByIndex(apertureIndex);
+//  float A = apvalues[apertureIndex];
   float iso = getISOByIndex(ISOIndex);
 //  uint8_t ndStop = getND(ndIndex);
 
@@ -262,12 +202,13 @@ void refresh() {
       }
     } else if (modeIndex == 1) {
       // Shutter speed priority. Calculating aperture.
-      A = fixAperture(sqrt(pow(2, EV) * ISOND * T / 100));
+//  zz    A = fixAperture(sqrt(pow(2, EV) * ISOND * T / 100));
+      A = sqrt(pow(2, EV) * ISOND * T / 100);
 
       // Calculating aperture index for correct menu navigation.
       if (A > 0) {
         for (int i = 0; i <= MaxApertureIndex; i++) {
-          if (A == getApertureByIndex(i)) {
+            if (A == getApertureByIndex(i)) {
             apertureIndex = i;
             break;
           }
@@ -303,7 +244,16 @@ void refresh() {
   uint8_t linePos[] = {3, 5};
   oled.clear();
   oled.set1X();
-  oled.setCursor(3, 1);
+
+// print divider
+  oled.setCursor(0, 2);
+  int count = 1;
+  while (count < 22) {
+    oled.print(F("-"));
+    count++;
+  }
+
+  oled.setCursor(0, 1);
   oled.print(F("ISO:"));
 
 // decimal point only if ISO is under 13
@@ -313,18 +263,52 @@ void refresh() {
     oled.print(iso, 1);
   } 
 
-  oled.setCursor(0, 2);
-  int count = 1;
-  while (count < 22) {
-    oled.print(F("-"));
-    count++;
+
+// display Lux
+  oled.setCursor(54, 0);
+  oled.print(F("LX: "));
+  oled.print(lux, 0);
+
+//display EV number
+
+   oled.setCursor(54, 1);
+   oled.print(F("EV: "));
+   if (lux > 0) {
+    oled.print(EV, 1);
+   } else {
+    oled.print("0");
+   }
+
+// ND filter indicator
+  if (ndIndex > 0) {
+   oled.setCursor(0, 7);
+    oled.print(F("ND"));
+    oled.print(pow(2, ndIndex), 0);
+    oled.print(F(" = -"));
+    oled.print(ndIndex);
+    oled.print(F(" stop"));
+    if (ndIndex > 1) {
+    oled.print(F("s"));
+    }
   }
+
+// battery indicator for 2 elements of 1.5v each.
+  oled.setCursor(109,3);
+  oled.print(battVolts, 1);
+  oled.set2X();
+  oled.setCursor(116,0);
+//  oled.print(F("B:"));
+  for (int i = 0; i < 3; i++) {
+   if (battVolts < batteryvalues[i]) {
+   oled.print(batterystatus[i]);
+   break;
+   }
+   }
 
 // Display f/stop
 
-  oled.setCursor(10, linePos[0]);
-
-  oled.set2X();
+  oled.setCursor(10, 3);
+//  oled.set2X();
   oled.print(F("f/"));
   if (A > 0) {
     if (A > 13) {
@@ -336,51 +320,7 @@ void refresh() {
     outOfrange();
   }
 
-  // battery indicator for 2 elements of 1.5v each.
-  oled.setCursor(112,0);
-  if (battVolts > 300) {
-   oled.print(F("F"));
-  } else if (battVolts > 280) {
-    oled.print(F("M"));
-  } else if (battVolts > 250) {
-    oled.print(F("L")); 
-  } else {
-    oled.print(F("E"));
-  }
-
-  oled.setCursor(57, 1);
-  oled.set1X();
-  oled.print(F("lux:"));
-  oled.print(lux, 0);
-
-//display EV number
-  oled.setCursor(95, linePos[0]);
-  oled.print(F("| EV: "));
-  oled.setCursor(95, linePos[0] + 1);
-  if (lux > 0) {
-    oled.print(F("| "));	
-    oled.println(EV, 1);
-  } else {
-    oled.println(0, 0);
-  }
-
-// ND filter indicator
-  if (ndIndex > 0) {
-   oled.setCursor(0, 7);
-    oled.print(F("ND"));
-    oled.print(pow(2, ndIndex), 0);
-//    oled.print(F(" = "));
-//    oled.println(ndStop / 10.0, 1);
-    oled.print(F(" = -"));
-    oled.print(ndIndex);
-    oled.print(F(" stop"));
-    if (ndIndex > 1) {
-    oled.print(F("s"));
-    }
-  }
-
-  oled.set2X();
-  oled.setCursor(10, linePos[1]);
+  oled.setCursor(10, 5);
   oled.print(F("T:"));
 
   if (Tdisplay == 0) {
