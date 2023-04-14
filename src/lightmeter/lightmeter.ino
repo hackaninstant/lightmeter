@@ -16,7 +16,8 @@ SSD1306AsciiWire oled;
 
 BH1750 lightMeter;
 
-#define DomeMultiplier          2.17                    // Multiplier when using a white translucid Dome covering the lightmeter
+// #define DomeMultiplier          2.17                 // Multiplier when using a white translucid Dome covering the lightmeter
+#define DomeMultiplier          1                                    
 #define MeteringButtonPin       2                       // Metering button pin
 #define PlusButtonPin           3                       // Plus button pin
 #define MinusButtonPin          4                       // Minus button pin
@@ -25,9 +26,9 @@ BH1750 lightMeter;
 // #define MeteringModeButtonPin         7                       // Metering Mode (Ambient / Flash)
 //#define PowerButtonPin          2
 
-#define MaxISOIndex             57
-#define MaxApertureIndex        70
-#define MaxTimeIndex            80
+#define MaxISOIndex             40
+#define MaxApertureIndex        39
+#define MaxTimeIndex            200
 #define MaxNDIndex              13
 // #define MaxFlashMeteringTime    5000                    // ms
 
@@ -69,11 +70,15 @@ uint8_t modeIndex =         EEPROM.read(modeIndexAddr);
 uint8_t ndIndex =           EEPROM.read(ndIndexAddr);
 
 
-int battVolts;
+float battVolts;
 #define batteryInterval 10000
 double lastBatteryTime = 0;
 
-float spvalues[] = {100, 80, 64, 50, 40, 32, 25, 20, 15, 12.5, 10};
+float spvalues[] = {100, 80, 60, 50, 40, 30, 25, 20, 15, 12.5, 10};
+float apvalues[] = {1, 1.1, 1.3, 1.4, 1.6, 1.8, 2, 2.2, 2.5, 2.8, 3.2, 3.5, 4, 4.5, 5, 5.6, 6.3, 7.1, 8, 9, 10, 11, 12.5, 14, 16, 18, 20, 22, 25, 28, 32, 36, 40, 45, 50, 57, 64, 72, 80, 90};
+float isoValues[] = {.8, 1, 1.25, 1.6, 2, 2.5, 3.2, 4, 5, 6.4};
+float batteryvalues[] = {2.5, 2.7, 3.0, 3.5};
+char batterystatus[4][1] = {"E", "L", "M", "F"};
 
 #include "lightmeterascii.h"
 
