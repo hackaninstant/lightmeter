@@ -5,16 +5,15 @@ This fork slashed down the code to fit into an ATMEGA 168 which only has 16K mem
 Features that were removed from master:
 
 * flash metering
-* aperture rounding
 * graphics display
 
 Code modifications: 
 
 * ISO minimum: .8 (for paper negatives)
-* uses array/math for calculating shutter/ISO instead of conditionals
+* uses array/math for calculating shutter/ISO/aperture instead of conditionals
 * optimized code to fit inside 16K Nano 168
-* Uses SSD1306Ascii.h instead of Adafruit to save space
-* disabled scrolling to save space
+* Uses SSD1306Ascii.h instead of Adafruit for screen display to save space
+* disabled scrolling in ssd1306ascii.h to save space
 
 Components:
 1. Arduino NANO v.3 ATMEGA 168 (16K)
