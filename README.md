@@ -1,5 +1,5 @@
 # lightmeter
-A Lightmeter for photographers, modified for for the Arduino Nano 168.
+A Lightmeter for photographers, modified for the Arduino Nano 168.
 
 This fork slashed down the code to fit into an ATMEGA 168 which only has 16K memory. The original required 27K.
 Features that were removed from master:
@@ -12,7 +12,7 @@ Code modifications:
 * ISO minimum: .8 (for paper negatives)
 * uses array/math for calculating shutter/ISO/aperture instead of conditionals
 * optimized code to fit inside 16K Nano 168
-* Uses SSD1306Ascii.h instead of Adafruit for screen display to save space
+* Uses SSD1306Ascii.h instead of Adafruit.h for screen display to save space
 * disabled scrolling in ssd1306ascii.h to save space
 
 Components:
@@ -33,12 +33,12 @@ Functions list:
 * Shutter speed priority
 * ND compensation
 * ISO range .8 - 8000
-* Aperture range 1.0 - 3251
-* Shutter speed range 1/10000 - 133 sec
+* Aperture range 1.0 - 90
+* Shutter speed range 1/10000 - 99999 minutes
 * Displays amount of light in Lux.
 * Displays exposure value, EV
 * Recalculates exposure pair if one parameter changes
 * Battery information
-* Power 2xAAA LR03 batteries
+* Power 2xAAA or AA batteries
 
 Detailed information on my site: https://www.pominchuk.com/lightmeter/
