@@ -57,7 +57,6 @@ float lux2ev(float lux) {
   return log2(lux / 2.5);
 }
 
-
 // return aperture value (1.4, 1.8, 2.0) by index in sequence (0, 1, 2, 3, ...).
 float getApertureByIndex(uint8_t indx) {
   float f = apvalues[indx];
@@ -69,26 +68,15 @@ float getISOByIndex(uint8_t indx) {
   if (indx < 0 || indx > MaxISOIndex) {
     indx = 0;
   }
-
   float iso = isoValues[indx % 10] * pow(10, floor(indx / 10)); // get ISO value from array
   return iso;
 }
-/* zz
-// round out aperture values
-float getMinDistance(float x, float v1, float v2) {
-  if (x - v1 > v2 - x) {
-    return v2;
-  }
-  return v1;
-}
-*/
 
 // get shutter speed by index
 float getTimeByIndex(uint8_t indx) {
   if (indx < 0 || indx >= MaxTimeIndex) {
     indx = 0;
   }
-
   float factor = floor(indx / 10) - 2; // get multiplying factor from remainder of index
   factor = -factor; // invert
   float t = spvalues[indx % 10] * pow(10, factor); // look up shutter speed by remainder of index and multiply by factor
@@ -100,9 +88,7 @@ float getTimeByIndex(uint8_t indx) {
 
 double fixTime(double t) {
   double divider = 1;
-
   float maxTime = getTimeByIndex(MaxTimeIndex);
-
   if (t < maxTime) {
     return maxTime;
   }
@@ -140,22 +126,7 @@ double fixTime(double t) {
   return t;
 }
 
-/* zz
-// Convert calculated aperture value to photograpy style aperture value. 
-float fixAperture(float a) {
-  for (int i = 0; i < MaxApertureIndex; i++) {
-    float a1 = getApertureByIndex(i);
-    float a2 = getApertureByIndex(i + 1);
-
-    if (a1 < a && a2 >= a) {
-      return getMinDistance(a, a1, a2);
-    }
-  }
-
-  return 0;
-}
-*/
-/*
+/* don't need this number...
 // Get ND from index
 
 uint8_t getND(uint8_t ndIndex) {
@@ -166,6 +137,7 @@ uint8_t getND(uint8_t ndIndex) {
   return 3 + (ndIndex - 1) * 3;
 }
 */
+
 // Calculate new exposure value and display it.
 
 void refresh() {
@@ -177,9 +149,8 @@ void refresh() {
 
   float T = getTimeByIndex(T_expIndex);
   float A = getApertureByIndex(apertureIndex);
-//  float A = apvalues[apertureIndex];
   float iso = getISOByIndex(ISOIndex);
-//  uint8_t ndStop = getND(ndIndex);
+//  uint8_t ndStop = getND(ndIndex);  don't need this number
 
 // if ND filter is configured then make corrections.
   if (ndIndex > 0) {
@@ -193,7 +164,7 @@ void refresh() {
       // Aperture priority. Calculating time.
       T = fixTime(100 * pow(A, 2) / ISOND / pow(2, EV)); //T = exposure time, in seconds
 
-      // Calculating shutter speed index for correct menu navigation.
+// Calculating shutter speed index for correct menu navigation.
       for (int i = 0; i <= MaxTimeIndex; i++) {
         if (T == getTimeByIndex(i)) {
           T_expIndex = i;
@@ -201,11 +172,10 @@ void refresh() {
         }
       }
     } else if (modeIndex == 1) {
-      // Shutter speed priority. Calculating aperture.
-//  zz    A = fixAperture(sqrt(pow(2, EV) * ISOND * T / 100));
+// Shutter speed priority. Calculating aperture.
       A = sqrt(pow(2, EV) * ISOND * T / 100);
 
-      // Calculating aperture index for correct menu navigation.
+// Calculating aperture index for correct menu navigation.
       if (A > 0) {
         for (int i = 0; i <= MaxApertureIndex; i++) {
             if (A == getApertureByIndex(i)) {
@@ -263,14 +233,12 @@ void refresh() {
     oled.print(iso, 1);
   } 
 
-
 // display Lux
   oled.setCursor(54, 0);
   oled.print(F("LX: "));
   oled.print(lux, 0);
 
 //display EV number
-
    oled.setCursor(54, 1);
    oled.print(F("EV: "));
    if (lux > 0) {
@@ -279,7 +247,7 @@ void refresh() {
     oled.print("0");
    }
 
-// ND filter indicator
+// display ND filter indicator if in use
   if (ndIndex > 0) {
    oled.setCursor(0, 7);
     oled.print(F("ND"));
@@ -292,37 +260,35 @@ void refresh() {
     }
   }
 
-// battery indicator for 2 elements of 1.5v each.
+// battery indicator for 2 1.5v batteries
   oled.setCursor(109,3);
   oled.print(battVolts, 1);
   oled.set2X();
   oled.setCursor(116,0);
-//  oled.print(F("B:"));
   for (int i = 0; i < 3; i++) {
    if (battVolts < batteryvalues[i]) {
-   oled.print(batterystatus[i]);
+   oled.print(batterystatus[i]);  // for some reason it prints more than just 1 character
    break;
    }
    }
 
 // Display f/stop
-
   oled.setCursor(10, 3);
-//  oled.set2X();
+//  oled.set2X()
   oled.print(F("f/"));
   if (A > 0) {
     if (A > 13) {
       oled.print(A, 0);
     } else {
-      oled.print(A, 1);
+      oled.print(A, 1);  // display one decimal point for aperture values under 13
     }
   } else {
     outOfrange();
   }
 
+// display shutter speed
   oled.setCursor(10, 5);
   oled.print(F("T:"));
-
   if (Tdisplay == 0) {
     oled.print(Tmin, 1);
     oled.print(F("m"));
